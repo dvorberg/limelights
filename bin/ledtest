@@ -146,7 +146,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Test script for PixelStrips")
     parser.add_argument("-c", "--count", help="Number of LED pixels", type=int,
-                        default=100)
+                        default=200)
     parser.add_argument("-g", "--gpio", help="GPIO pin connected to the pixels"
                         "18 uses PWM, 10 uses SPI /dev/spidev0.0, 21 uses PCM",
                         default=18, type=int)
