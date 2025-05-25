@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import sys, argparse, time
+import sys, argparse, time, re
+from icecream import ic
 from rpi_ws281x import PixelStrip, Color
 
 def components(color):
@@ -144,9 +145,27 @@ def main():
         else:
             return int(s)
 
+    range_re = re.compile(r"(\d+)[-–](\d+)|(\d+)")
+    def parse_number_range(r):
+        match = range_re.match(r)
+        if match is None:
+            raise ValueError("Range syntax error in " + repr(r))
+        else:
+            first, last, no = match.groups()
+            if first and last:
+                return set(range(int(first), int(last)+1))
+            else:
+                return {int(no)}
+
+    def parse_number_ranges(r):
+        ret = set()
+        for R in r.split(","):
+            ret |= parse_number_range(R)
+        return ret
+
     parser = argparse.ArgumentParser(description="Test script for PixelStrips")
     parser.add_argument("-c", "--count", help="Number of LED pixels", type=int,
-                        default=200)
+                        default=None)
     parser.add_argument("-g", "--gpio", help="GPIO pin connected to the pixels"
                         "18 uses PWM, 10 uses SPI /dev/spidev0.0, 21 uses PCM",
                         default=18, type=int)
@@ -173,25 +192,44 @@ def main():
     parser.add_argument("-t", "--color-temperature", default=5000, type=int,
                         help="Color temperature of “white” to use, devideable "
                         "by 100. Defaults to 15000 (0xffffff).")
-    parser.add_argument("--list-temperatures", action="store_true", default=False,
+    parser.add_argument("--list-temperatures", action="store_true",
+                        default=False,
                         help="List color temperature values with comments "
                         "and quit.")
     parser.add_argument("--cycle", help="Do not light all the pixels at once, "
                         "but one after the other pausing for “duration” below.",
                         action="store_true", default=False)
-    parser.add_argument("-D", "--duration", help="Pause between lights on cycle.",
+    parser.add_argument("-D", "--duration",
+                        help="Pause between lights on cycle.",
                         default=0.5, type=float)
     parser.add_argument("-v", "--verbose", help="Be verbose",
                         action="store_true", default=False)
     parser.add_argument("-p", "--pause", help="Wait for <enter> after each "
                         "light on cycle.",
                         action="store_true", default=False)
-    parser.add_argument("-n", "--number", default=None, type=int,
-                        help="Only turn on the pixel with <number>.")
-
-
+    parser.add_argument("-0", "--off", action="store_true", default=False,
+                        help="Turn all pixels off on startup.")
+    parser.add_argument("numbers", nargs="*", type=parse_number_ranges,
+                        help="Which pixels to activate. Indeces are 0-based."
+                        "Ranges may be specified using <start>-<end>.")
 
     args = parser.parse_args()
+
+    if args.numbers:
+        numbers = set()
+        for n in args.numbers:
+            numbers |= n
+        numbers = list(numbers)
+        numbers.sort()
+        if args.count is None:
+            # The numbers passed on the cmd line are ordinals.
+            # This is a count.
+            args.count = max(numbers) + 1
+    else:
+        if args.count is None:
+            args.count = 200
+
+        numbers = list(range(args.count))
 
     if args.list_temperatures:
         for k, tpl in kelvin_table.items():
@@ -210,6 +248,10 @@ def main():
                        args.invert, args.brightness, channel)
     # Intialize the library (must be called once before other functions).
     strip.begin()
+
+    if args.off:
+        for a in numbers:
+            strip[a] = 0x00
 
     # white = 0xffffff
     # warmwhite = 0xe18024
@@ -235,34 +277,32 @@ def main():
         color = brighter(color, args.brighter)
 
     if args.cycle:
-        # Turn everythin off.
-        for a in range(strip.size):
+        try:
+            while True:
+                for a in numbers:
+                    strip[a] = color
+                    strip.show()
+
+                    if args.pause:
+                        print(a, "hit <return>", end="")
+                        input()
+                    else:
+                        if args.verbose:
+                            print(a)
+                        time.sleep(args.duration)
+
+                    strip[a] = 0
+
+                if args.pause or args.verbose:
+                    print()
+        except KeyboardInterrupt:
+            print()
             strip[a] = 0
-
-        for a in range(strip.size):
-            if a != 0:
-                strip[a-1] = 0
-            strip[a] = color
-            strip.show()
-
-            if args.verbose:
-                print(a)
-
-            if args.pause:
-                print(a, "hit <return>", end="")
-                input()
-            else:
-                time.sleep(args.duration)
-
-        strip[a] = 0
-    elif args.number is not None:
-        assert args.number < strip.size
-        strip[args.number] = color
-        strip.show()
     else:
-        for a in range(strip.size):
+        for a in numbers:
             strip[a] = color
 
+    ic(strip.size)
     strip.show()
 
     #while True:
