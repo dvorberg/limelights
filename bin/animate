@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+
+from limelights.cmdline import animate
+animate()
