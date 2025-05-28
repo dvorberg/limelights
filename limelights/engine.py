@@ -1,36 +1,57 @@
 import sys, time
 
-from . import framerate
-from .model import Changes
+from . import config
+from .model import Changes, Time, Town
+from .utils import clear, home
 
 class Engine(object):
-    def __init__(self, buildings, first_light_index=0):
+    def __init__(self, town:Town, first_light_index:Time=0):
         self._strip = None
-        self.buildings = buildings
+        self.town = town
 
         def indeces():
-            i = 0
+            i = first_light_index
             while True:
                 yield i
                 i += 1
         self.indeces = indeces()
 
-        for building in self.buildings:
-            building.engine_init(self)
+        self.town.engine_init(self)
 
         self.lightcount = next(self.indeces)
         self.indeces = None
 
-    def animate(self, strip):
-        frametime = 1 / framerate
-        while True:
-            start = time.time()
+        self._now = Time(0)
 
-            changes = Changes([building.animated_changes()
-                               for building in self.buildings])
+    def _output_debug_info(self, strip):
+        home()
 
-            for idx, color in changes:
-                strip[idx] = color
+        for b in self.town:
+            print(f"{b.__class__.__name__} “{b.name}”")
+            for room in b:
+                print(" ", room.__class__.__name__, f"“{room.name}”")
+                for source in room:
+                    pixel = source.__fstpix()
+                    print("  {:3}:{:06x}".format(pixel._idx, strip[pixel._idx]),
+                          pixel.__class__.__name__)
+
+        print()
+        print(self._now)
+        self._now += 1
+
+
+    def animate(self, strip, debug=False):
+        if debug:
+            clear()
+
+        frametime = 1 / config.framerate
+        start = time.time()
+        changes = self.town.changes()
+        for change in changes:
+            change.apply_to(strip)
+
+            if debug:
+                self._output_debug_info(strip)
 
             strip.show()
 
@@ -38,3 +59,4 @@ class Engine(object):
             d = frametime - (end-start)
             if d > 0:
                 time.sleep(d)
+            start = end + d
