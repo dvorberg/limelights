@@ -1,106 +1,18 @@
 import random, dataclasses, types
+from typing import Generator
 
-from . import framerate
-from .animations import on, off, tv
+from . import config
+from .basetypes import (Time, Duration, randmins, Color,
+                        Animation, Animations, AnimationsFunction,
+                        Change, Changes, Light, Lamp, NameableList)
+from .animations import limit, repeats, on, off, tv, candle
 
-class Time(int):
-    @property
-    def frames(self):
-        return self % framerate
-
-    @property
-    def seconds(self):
-        return self // framerate
-
-    @property
-    def minutes(self):
-        return self.seconds // 60
-
-    @property
-    def hours(self):
-        return self.minutes // 60
-
-    def time_in(self, seconds=0, minutes=0, hours=0):
-        return Time(  seconds*framerate
-                    + minutes*60*framerate
-                    + hours*60*60*framerate)
-
-    @classmethod
-    def random(Time, a, b):
-        return Time(random.randint(a, b))
-
-    @classmethod
-    def seconds(Time, f:float):
-        return Time(f*framerate)
-
-    @classmethod
-    def minutes(Time, f:float):
-        return Time(f*60*framerate)
-
-    @classmethod
-    def hours(Time, f:float):
-        return Time(f*60*60*framerate)
-
-@dataclasses.dataclass
-class Minutes(object):
-    a: int
-    b: int
-
-    def make_random_time(self):
-        return Time.random(self.a, self.b)
-
-def once(animation):
-    for color in animation:
-        yield color
-
-    while True:
-        yield None
-
-def limit(animation, time):
-    if isinstance(time, Minutes):
-        time = time.make_random_time()
-
-    for color in animation:
-        yield color
-
-        time -= 1
-        if time == 0:
-            break
-
-class Change(dict):
-    def __init__(self, idx, color):
-        super().__init__( [(idx, color,)] )
-
-    def __add__(self, other):
-        self.update(other)
-
-    def __iter__(self):
-        return iter(self.items())
-
-    def __repr__(self):
-        return "Change" + super().__repr__()
-
-class Changes(Change):
-    def __init__(self, things):
-        dict.__init__(self)
-
-        for thing in things:
-            if thing:
-                if isinstance(thing, Change):
-                    self.update(thing)
-                elif type(thing) == types.GeneratorType:
-                    self.update(Changes(thing))
-                else:
-                    raise TypeError(type(thing))
-
-class Changeable(object):
-    def engine_init(self, engine):
-        raise NotImplementedError()
-
-    def change_to(self, color) -> Change:
-        raise NotImplementedError()
-
-class Light(Changeable):
+class Pixel(Light):
+    """
+    A Pixel represents one of the lights on a PixelStrip
+    identified by its index which is set through the engine_init()
+    method.
+    """
     def __init__(self):
         self._idx = None
 
@@ -110,55 +22,111 @@ class Light(Changeable):
     def change_to(self, color) -> Change:
         return Change(self._idx, color)
 
-class Container(list):
+    def _Engine__fstpix(self):
+        return self
+
+class Source(object):
+    """
+    A source is a Light that has animations to it.
+    A source has a generator of Changes.
+
+    The animations generator may be changed on the fly. The next
+    Change yielded by changes() will reflect the er… change.
+    """
+    def __init__(self, light:Light, animations:AnimationsFunction):
+        self.light = light
+        self._dirty = False
+        self._animations = animations
+
     def engine_init(self, engine):
-        for item in self:
-            item.engine_init(engine)
+        self.light.engine_init(engine)
 
-    def change_to(self, color) -> Change:
-        return Changes([item.change_to(color) for item in self])
+    @property
+    def animations(self) -> AnimationsFunction:
+        return self._animations
 
-    def __repr__(self):
-        cls = self.__class__.__name__
-        if hasattr(self, "_name"):
-            name = f" “{self._name}”"
-        lst = super().__repr__()[1:-1]
-        return f"[{cls}{name} {lst}]"
+    @animations.setter
+    def animations(self, animations:AnimationsFunction):
+        self._animations = animations
+        self._dirty = True
 
-class Room(Container):
-    def __init__(self, *lights, lightnum=None, color=0xffffff):
-        """
-        Specific `lights` may be passed as positional parameters. If a
-        string is passed among the lights, it is assumed to be the room’s
-        name. If no lights are specified, `lightnum` default lights will
-        be created in their stead.
-        """
-        self._color = color
-        self._name = "Room " + str(id(self))
-        for light in lights:
-            if type(light) is str:
-                self._name = light
-            else:
-                self.append(light)
-
-        if lightnum is not None:
-            while len(self) < lightnum:
-                self.append(self.make_default_light())
-
-    def make_default_light(self):
-        return Light()
-
-    def animations(self):
-        yield once(self.on())
-
-    def animated_changes(self):
+    def changes(self) -> Generator[Change, None, None]:
         while True:
+            self._dirty = False
             for animation in self.animations():
                 for color in animation:
-                    if color is not None:
-                        yield self.change_to(color)
-                    else:
+                    if color is None:
                         yield None
+                    else:
+                        yield self.light.change_to(color)
+
+                    if self._dirty:
+                        break
+                if self._dirty:
+                    break
+
+    def _Engine__fstpix(self):
+        if hasattr(self.light, "_Engine__fstpix"):
+            return self.light
+        else:
+            return self.light[0]._Engine__fstpix()
+
+class Space(NameableList):
+    """
+    A space is a collection of Sources and a genrator of
+    Changes. They can be nested.
+    """
+    def engine_init(self, engine):
+        for source in self:
+            source.engine_init(engine)
+
+    def changes(self) -> Generator[Change, None, None]:
+        running = [source.changes() for source in self]
+        while True:
+            yield Changes([next(r) for r in running])
+
+    def _Engine__fstpix(self):
+        return self[0]._Engine__fstpix()
+
+class Room(Space):
+    """
+    This is a base class for specific decorative units that
+    roughly correspond to rooms in a building. The default
+    implementation accepts assembles a number of lights to a source
+    and runs the on() animation on them, turning the light in the room
+    to a specified default color.
+    """
+    def __init__(self, *lights, lightnum=1, color=0xffffff):
+        """
+        Specific “lights” may be passed as positional
+        parameters. If a string is passed among the lights, it is
+        assumed to be the room’s name. If ferer lights are specified than
+        `lightnum`, default lights will be created in their stead.
+        """
+        self._color = color
+
+        lamp = Lamp()
+
+        for l in lights:
+            if type(l) is str:
+                self._name = l
+            else:
+                lamp.append(l)
+
+        while len(lamp) < lightnum:
+            lamp.append(self.make_default_pixel())
+
+        self.append(Source(lamp, self.animations))
+
+    @property
+    def source(self):
+        return self[0]
+
+    def animations(self):
+        yield self.on()
+
+    def make_default_pixel(self):
+        return Pixel()
 
     def on(self):
         return on(self._color)
@@ -186,10 +154,13 @@ class HotelRoom(Room):
     These default times may vary and I’ll probably forget updating
     this comment, but you get the idea.
     """
-    def __init__(self, *lights, lightnum=None, color=0x553311,
-                 regular=Minutes(3,10),
-                 beforetv=Minutes(2,8), tv=Minutes(6,12), aftertv=Minutes(2,3),
-                 darkness=Minutes(10,20)):
+    def __init__(self, *lights, lightnum=1, color=0x553311,
+                 regular=randmins(3,10),
+                 beforetv=randmins(2,8),
+                 tv=randmins(6,12),
+                 aftertv=randmins(2,3),
+                 darkness=randmins(10,20)):
+
         super().__init__(*lights, lightnum=lightnum, color=color)
         self.regular = regular
         self.beforetv = beforetv
@@ -197,12 +168,14 @@ class HotelRoom(Room):
         self.aftertv = aftertv
         self.darkness = darkness
 
+        self.source.animations = self.animations
+
     def animations(self):
         def occupied():
-            return random.random() > .65
+            return random.random() > .5
 
         def watchingtv():
-            return random.random() >= .5
+            return random.random() >= .4
 
         if occupied():
             if watchingtv():
@@ -215,29 +188,15 @@ class HotelRoom(Room):
 
             yield limit(self.on(), self.darkness)
         else:
-            yield limit(self.on(), self.darkness)
+            yield limit(self.off(), self.darkness)
 
+class TVRoom(Room):
+    def animations(self):
+        yield tv()
 
-class Fireplace(Room):
-    """
-    A room with a fireplace has a soft warm-white base lighting.
-
-    The lights may be off for 6-20min
-       or
-    on for 3-8min
-       followed by 15-22min of fire animation (the last of which animates
-       dying amers till darkness).
-    followed by 8-15min of darkness.
-    """
-    def __init__(self, *lights, lightnum=None, color=0x553311,
-                 light=Minutes(6,20),
-                 beforefire=Minutes(3,8), fire=Minutes(15,22),
-                 darkness=Minutes(6,20)):
-        super().__init__(*lights, lightnum=lightnum, color=color)
-        self.light = light
-        self.beforefire = beforefire
-        self.fire = fire
-        self.darkness = darkness
+class CandleRoom(Room):
+    def animations(self):
+        yield candle()
 
 class Stairwell(Room):
     """
@@ -250,7 +209,7 @@ class Stairwell(Room):
     1-1 minute. (“light=”).
     """
     def __init__(self, *lights, lightnum=None, color=0x553311,
-                 usage=Minutes(5,12), light=Time.minutes(1)):
+                 usage=randmins(5,12), light=Time.from_minutes(1)):
         super().__init__(*lights, lightnum=lightnum, color=color)
         self.usage = usage
         self.light = light
@@ -259,13 +218,11 @@ class Stairwell(Room):
         yield limit(self.off(), self.usage)
         yield limit(self.on(), self.light)
 
-class Building(Container):
-    def __init__(self, name, *rooms):
-        self._name = name
-        for room in rooms:
-            self.append(room)
+class Fireplace(Room):
+    pass
 
-        self.running = [ room.animated_changes() for room in self ]
+class Building(Space):
+    pass
 
-    def animated_changes(self):
-        return Changes([ next(animation) for animation in self.running ])
+class Town(Space):
+    pass
