@@ -139,7 +139,7 @@ class VictorsRoom(Room):
 
 
 hotel_schwan = Building(
-    "Hotel Schan",
+    "Hotel Schwan",
     # Auhagen Stadthaus H0, Schmidtstraße 39 „Hotel Schwan“
     # https://www.auhagen-shop.de/Stadthaus-H0-Schmidtstrasse-39-Hotel-Schwan/11471
 
