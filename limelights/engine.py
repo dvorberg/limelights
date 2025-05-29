@@ -25,23 +25,14 @@ class Engine(object):
 
     def _output_debug_info(self, strip):
         home()
-
-        for b in self.town:
-            print(f"{b.__class__.__name__} “{b.name}”")
-            for room in b:
-                print(" ", room.__class__.__name__, f"“{room.name}”")
-                for source in room:
-                    pixel = source.__fstpix()
-                    print("  {:3}:{:06x}".format(pixel._idx, strip[pixel._idx]),
-                          pixel.__class__.__name__)
-
+        self.town.print_items(strip)
         print()
         print(self._now)
         self._now += 1
 
 
-    def animate(self, strip, debug=False):
-        if debug:
+    def animate(self, strip):
+        if config.debug:
             clear()
 
         frametime = 1 / config.framerate
@@ -50,7 +41,7 @@ class Engine(object):
         for change in changes:
             change.apply_to(strip)
 
-            if debug:
+            if config.debug:
                 self._output_debug_info(strip)
 
             strip.show()
