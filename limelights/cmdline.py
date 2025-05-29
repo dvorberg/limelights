@@ -11,8 +11,8 @@ except ImportError:
 
 from . import config
 from . engine import Engine
-from .basetypes import Time
-from .model import Building, Town
+from .basetypes import Time, Changes
+from .model import Building, Town, Source, Light
 
 class DebugPixelStrip(dict):
     def __init__(self, *args, **kw):
@@ -125,20 +125,32 @@ def load_buildings(modules):
                 value.identifyer = identifyer
                 yield value
 
+def all_lights(item):
+    if isinstance(item, Light):
+        yield item
+    elif isinstance(item, Source):
+        yield item.light
+    elif isinstance(item, list):
+        for a in item:
+            yield from all_lights(a)
+    else:
+        raise TypeError(item)
+
+
 def identify():
     parser = argparse.ArgumentParser(description="Identify room lights "
                                      "by blinking each room’s light(s) twice "
                                      "and then the next room and so on.")
 
     populate_with_strip_arguments(parser)
+    parser.add_argument("--building", "-b", help="Specify building name or "
+                        "identifyer (within its module). If not set, the "
+                        "first building loaded will be used.", default=None)
     parser.add_argument("--offset", "-o", help="First light’s ID to be used",
                         type=int, default=0)
     parser.add_argument("--skip", "-s", help="Number of rooms (not lights!) "
                         "to skip before blinking any lights", type=int,
                         default=0)
-    parser.add_argument("--building", "-b", help="Specify building name or "
-                        "identifyer (within its module). If not set, the "
-                        "first building loaded will be used.", default=None)
     parser.add_argument("--wait", "-w", help="Wait for key press before "
                         "blinking the next room", action="store_true",
                         default=False)
@@ -148,49 +160,46 @@ def identify():
 
     args = parser.parse_args()
 
-    engine = Engine(Town(*load_buildings(args.modules)), args.offset)
+    town = Town(*load_buildings(args.modules))
+    engine = Engine(town, args.offset)
 
     strip = construct_strip(args, engine.lightcount)
     strip.begin()
 
     building = None
-    for b in engine.buildings:
-        if b.identifyer == args.building or b.name == args.building:
-            building = b
-            break
+    if args.building:
+        building = town.building_by_name(args.building)
 
     if building is None:
-        building = engine.buildings[0]
+        building = town[0]
 
-    # Turn all the lights off.
-    changes = Changes([room.change_to(0x000000)
-                       for room in building])
-    changes.apply_to(strip)
-    strip.show()
-
-    def set(color):
-        change = room.change_to(color)
+    def set(item, color):
+        change = Changes([light.change_to(color)
+                          for light in all_lights(item)])
         change.apply_to(strip)
         strip.show()
 
+    # Turn all the lights off.
+    set(building, 0)
+
     # Ok, let’s do our work here:
     for idx, room in enumerate(building[args.skip:]):
-        print(idx+args.skip, room, end=" ")
+        print(room._info(), end=" ")
         sys.stdout.flush()
 
-        set(0xffffff)
+        set(room, 0xffffff)
         time.sleep(.5)
-        set(0x000000)
+        set(room, 0x000000)
         time.sleep(.5)
-        set(0xffffff)
+        set(room, 0xffffff)
         time.sleep(.5)
-        set(0x000000)
+        set(room, 0x000000)
 
         if args.wait:
-            set(0xffffff)
+            set(room, 0xffffff)
             print("<ENTER>", end="")
             input()
-            set(0x000000)
+            set(room, 0x000000)
         else:
             print()
 
@@ -207,7 +216,7 @@ def animate():
                         type=int, default=24)
     parser.add_argument("--offset", "-o", help="First light’s ID to be used",
                         type=int, default=0)
-    parser.add_argument("--debug-output",
+    parser.add_argument("--debug",
                         help="Print Buildings, rooms, and lights to stdout"
                         "on each frame.",
                         action="store_true", default=False)
@@ -217,11 +226,12 @@ def animate():
 
     args = parser.parse_args()
 
-    if args.debug_strip or "RealPixelStrip" not in globals():
-        args.debug_output = True
+    if args.debug or "RealPixelStrip" not in globals():
+        args.debug = True
 
     config.framerate = args.framerate
     config.speed = args.speed
+    config.debug = args.debug
 
     engine = Engine(Town(*load_buildings(args.modules)), args.offset)
 
@@ -229,4 +239,15 @@ def animate():
     strip.begin()
 
     # This will not return.
-    engine.animate(strip, args.debug_output)
+    engine.animate(strip)
+
+def list_items():
+    parser = argparse.ArgumentParser(help="Load building modules and list "
+                                     "their subitems.")
+
+    parser.add_argument("modules", nargs="+",
+                        help="Python modules to import or python files to "
+                        "evaluate to load building models")
+
+    town =  Town(*load_buildings(args.modules))
+    town.list_items()
