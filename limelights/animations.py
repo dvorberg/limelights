@@ -39,6 +39,13 @@ def repeats(f):
 
     return wrapper
 
+def darker(animation:Animation, factor:float):
+    for color in animation:
+        if color is None:
+            yield None
+        else:
+            yield color.darker(factor)
+
 @perpetual
 def on(color):
     yield color
