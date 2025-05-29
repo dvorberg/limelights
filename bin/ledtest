@@ -2,22 +2,9 @@
 
 import sys, argparse, time, re
 from icecream import ic
-from rpi_ws281x import PixelStrip, Color
+from rpi_ws281x import PixelStrip
 
-def components(color):
-    r = color >> 16
-    g = (color & 0x00ff00) >> 8
-    b = (color & 0x0000ff)
-    return (r, g, b)
-
-def compose(r, g, b):
-    return (r << 16) | (g << 8) | b
-
-def brighter(color, factor):
-    return compose(*[int(c*factor) for c in components(color)])
-
-def darker(color, factor):
-    return compose(*[int(c/factor) for c in components(color)])
+from limelights.basetypes import Color
 
 # Source: https://andi-siess.de/rgb-to-color-temperature/
 # Thanks for that!
@@ -259,7 +246,7 @@ def main():
     # warmwhite = 0x191105 # darker still
 
     if args.color is not None:
-        color = args.color
+        color = Color(args.color)
     else:
         if args.color_temperature in kelvin_table:
             key = args.color_temperature
@@ -268,13 +255,13 @@ def main():
             key = keys[min(range(len(keys)),
                            key = lambda i: abs(keys[i]-args.color_temperature))]
 
-        color = compose(*kelvin_table[key][:3])
+        color = Color.from_components(*kelvin_table[key][:3])
 
     if args.darker != 1.0:
-        color = darker(color, args.darker)
+        color = color.darker(args.darker)
 
     if args.brighter != 1.0:
-        color = brighter(color, args.brighter)
+        color = color.brighter(args.brighter)
 
     if args.cycle:
         try:
