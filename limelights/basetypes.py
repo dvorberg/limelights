@@ -1,5 +1,6 @@
 import types, random
 from typing import Generator, Callable
+from termcolor import colored
 
 from . import config
 
@@ -107,13 +108,16 @@ class Color(int):
     def rgb(self):
         return (self >> 16, (self & 0x00ff00) >> 8, self & 0x0000ff)
 
-    def brigter(self, factor:float):
+    def brighter(self, factor:float):
         factor = float(factor)
         return self.from_components(*[int(c*factor) for c in self.rgb])
 
     def darker(self, factor:float):
         factor = float(factor)
         return self.from_components(*[int(c/factor) for c in self.rgb])
+
+    def __repr__(self):
+        return f"{self:06x}"
 
 Animation = Generator[Color, None, None]
 Animations = Generator[Animation, None, None]
@@ -164,7 +168,69 @@ class Light(object):
     def change_to(self, color) -> Change:
         raise NotImplementedError()
 
-class Lamp(Light, list):
+    @property
+    def indeces(self):
+        return set()
+
+    def print_items(self, level=0):
+        raise NotImplementedError()
+
+class Lights(list):
+    @property
+    def indeces(self):
+        ret = set()
+        for a in self:
+            ret.update(a.indeces)
+        return ret
+
+    @property
+    def pixels(self):
+        return sorted([item for item in self
+                       if getattr(item, "idx", None) is not None])
+
+
+
+    def print_items(self, strip=None, level=0):
+        print(level*"  " + self._info() + (self._colorinfo(strip) or ""))
+
+        for item in self:
+            if hasattr(item, "print_items"):
+                item.print_items(strip, level+1)
+
+    def _info(self):
+        ids = sorted(list(self.indeces))
+        s = []
+        while ids:
+            n = ids[0]
+            ids = ids[1:]
+            m = n
+            while (ids and ids[0] == m+1):
+                m = ids[0]
+                ids = ids[1:]
+
+            if n == m:
+                s.append(str(n))
+            else:
+                s.append(f"{n}–{m}")
+
+        typename = self.__class__.__name__
+        s = ",".join(s)
+        return f"[{s}] {typename}"
+
+    def _colorinfo(self, strip):
+        if strip:
+            ids = sorted(list(self.indeces))
+            def color(i):
+                c = Color(strip[i])
+                return colored(c, color="red") # , on_color=c.rgb
+            return " " + " ".join([f"{i}:{color(i)}" for i in ids])
+
+    def __repr__(self):
+        lst = super().__repr__()[1:-1]
+        return f"[{self._info()} {lst}]"
+
+
+class Lamp(Lights, Light):
     """
     A Lamp is a collection of multiple Lights that show the same
     color. It implements the Light interface and can be used anywhere
@@ -180,8 +246,7 @@ class Lamp(Light, list):
     def change_to(self, color) -> Change:
         return Changes([item.change_to(color) for item in self])
 
-
-class NameableList(list):
+class NameableLights(Lights):
     """
     A Nameable is a list of things that also accepts strings as
     parameters. The first string passed is considered the object’s
@@ -207,15 +272,12 @@ class NameableList(list):
         for item in self:
             item.engine_init(engine)
 
-    def __repr__(self):
-        cls = self.__class__.__name__
-        name = self.name
-        if name:
-            name = f" “{name}”"
+    def _info(self):
+        info = super()._info()
+        if name := self.name:
+             return f"{info} “{name}”"
         else:
-            name = ""
-        lst = super().__repr__()[1:-1]
-        return f"[{cls}{name} {lst}]"
+            return info
 
     @property
     def name(self):
