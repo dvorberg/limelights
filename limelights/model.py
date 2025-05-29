@@ -4,7 +4,7 @@ from typing import Generator
 from . import config
 from .basetypes import (Time, Duration, randmins, Color,
                         Animation, Animations, AnimationsFunction,
-                        Change, Changes, Light, Lamp, NameableList)
+                        Change, Changes, Light, Lamp, NameableLights)
 from .animations import limit, repeats, on, off, tv, candle
 
 class Pixel(Light):
@@ -14,16 +14,20 @@ class Pixel(Light):
     method.
     """
     def __init__(self):
-        self._idx = None
+        self.idx = None
 
     def engine_init(self, engine):
-        self._idx = next(engine.indeces)
+        self.idx = next(engine.indeces)
 
     def change_to(self, color) -> Change:
-        return Change(self._idx, color)
+        return Change(self.idx, color)
 
-    def _Engine__fstpix(self):
-        return self
+    @property
+    def indeces(self):
+        return {self.idx}
+
+    def __lt__(self, other):
+        return self.idx < other.idx
 
 class Source(object):
     """
@@ -37,6 +41,10 @@ class Source(object):
         self.light = light
         self._dirty = False
         self._animations = animations
+
+    @property
+    def indeces(self):
+        return self.light.indeces
 
     def engine_init(self, engine):
         self.light.engine_init(engine)
@@ -65,13 +73,7 @@ class Source(object):
                 if self._dirty:
                     break
 
-    def _Engine__fstpix(self):
-        if hasattr(self.light, "_Engine__fstpix"):
-            return self.light
-        else:
-            return self.light[0]._Engine__fstpix()
-
-class Space(NameableList):
+class Space(NameableLights):
     """
     A space is a collection of Sources and a genrator of
     Changes. They can be nested.
@@ -84,9 +86,6 @@ class Space(NameableList):
         running = [source.changes() for source in self]
         while True:
             yield Changes([next(r) for r in running])
-
-    def _Engine__fstpix(self):
-        return self[0]._Engine__fstpix()
 
 class Room(Space):
     """
@@ -222,7 +221,14 @@ class Fireplace(Room):
     pass
 
 class Building(Space):
-    pass
+    def _colorinfo(self, strip): pass
 
 class Town(Space):
-    pass
+    def _colorinfo(self, strip): pass
+
+    def building_by_name(self, name) -> Building|None:
+        for b in self:
+            if b.identifyer == name or b.name == name:
+                return b
+
+        return None
