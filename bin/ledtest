@@ -255,7 +255,7 @@ def main():
             key = keys[min(range(len(keys)),
                            key = lambda i: abs(keys[i]-args.color_temperature))]
 
-        color = Color.from_components(*kelvin_table[key][:3])
+        color = Color.from_rgb(*kelvin_table[key][:3])
 
     if args.darker != 1.0:
         color = color.darker(args.darker)

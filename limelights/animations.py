@@ -89,7 +89,7 @@ def tv():
         b = limit(50 + randint(middle-bigdiff, middle+bigdiff))
 
         # A cut to a new sequence.
-        yield Color.from_components(r, g, b)
+        yield Color.from_rgb(r, g, b)
 
         yield from rwait(.2, .8)
 
@@ -100,7 +100,7 @@ def tv():
             G = limit(g + randint(-smalldiff, smalldiff))
             B = limit(b + randint(-smalldiff, smalldiff))
 
-            yield Color.from_components(R, G, B)
+            yield Color.from_rgb(R, G, B)
 
             yield from rwait(.2, .8)
 
