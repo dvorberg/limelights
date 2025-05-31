@@ -1,4 +1,4 @@
-import types, random
+import types, random, colorsys
 from typing import Generator, Callable
 from termcolor import colored
 
@@ -89,8 +89,19 @@ def randsecs(a, b) -> RDuration:
 
 class Color(int):
     @classmethod
-    def from_components(Color, r:int, g:int, b:int):
+    def from_rgb(Color, r:int, g:int, b:int):
         return Color((r << 16) | (g << 8) | b)
+
+    @classmethod
+    def from_rgb_f(Color, r:float, g:float, b:float):
+        # Keep these around in case we need them later.
+        ret = Color.from_rgb(round(r*255), round(g*255), round(b*255))
+        ret._rgb_f = r, g, b
+        return ret
+
+    @classmethod
+    def from_hsl(Color, h:float, s:float, l:float):
+        return Color.from_rgb_f(*colorsys.hls_to_rgb(h, s, l))
 
     @property
     def r(self) -> int:
@@ -105,19 +116,64 @@ class Color(int):
         return (self & 0x0000ff)
 
     @property
-    def rgb(self):
+    def rgb(self) -> tuple[int]:
         return (self >> 16, (self & 0x00ff00) >> 8, self & 0x0000ff)
 
-    def brighter(self, factor:float):
-        factor = float(factor)
-        return self.from_components(*[int(c*factor) for c in self.rgb])
+    @property
+    def rgb_f(self) -> tuple[float]:
+        if not hasattr(self, "_rgb_f"):
+            self._rgb_f = tuple([channel / 255 for channel in self.rgb])
+        return self._rgb_f
 
-    def darker(self, factor:float):
-        factor = float(factor)
-        return self.from_components(*[int(c/factor) for c in self.rgb])
+    @property
+    def hsl(self) -> tuple[float]:
+        return colorsys.rgb_to_hls(*self.rgb_f)
+
+    @property
+    def h(self) -> float:
+        """
+        Most sources of visible light contain energy over a band
+        of wavelengths. Hue is the wavelength within the visible light
+        spectrum at which the energy output from a source is
+        greatest. It is indicated by its position (in degrees) on the
+        RGB color wheel: 0° <= h <= 360°
+        """
+        return self.hsl[0]
+
+    @property
+    def s(self) -> float:
+        """
+        Saturation is an expression for the relative bandwidth of
+        the visible output from a light source. As saturation
+        increases, colors appear more pure. As saturation decreases,
+        colors appear more washed-out. It is measured on the following
+        scale: 0 <= s <= 1
+        """
+        return self.hsl[1]
+
+    @property
+    def l(self) -> float:
+        """
+        Luminosity (also called brightness, lightness or
+        luminance) stands for the intensity of the energy output of a
+        visible light source. It basically tells how light a color is
+        and is measured on the following scale: 0 <= l <= 1
+        """
+        return self.hsl[2]
 
     def __repr__(self):
         return f"{self:06x}"
+
+    def brighter(self, factor:float):
+        h,s,l = self.hsl
+        l = l*factor
+        if l > 1.0:
+            l = 1.0
+        return self.from_hsl(h, s, l)
+
+    def darker(self, factor:float):
+        h,s,l = self.hsl
+        return self.from_hsl(h, s, l/factor)
 
 Animation = Generator[Color, None, None]
 Animations = Generator[Animation, None, None]
