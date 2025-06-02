@@ -101,6 +101,7 @@ class Color(int):
 
     @classmethod
     def from_hsl(Color, h:float, s:float, l:float):
+        self._hsl = (h, s, l)
         return Color.from_rgb_f(*colorsys.hls_to_rgb(h, s, l))
 
     @property
@@ -127,7 +128,9 @@ class Color(int):
 
     @property
     def hsl(self) -> tuple[float]:
-        return colorsys.rgb_to_hls(*self.rgb_f)
+        if not hasattr(self, "_hsl"):
+            self._hsl = colorsys.rgb_to_hls(*self.rgb_f)
+        return self._hsl
 
     @property
     def h(self) -> float:
