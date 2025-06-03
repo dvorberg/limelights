@@ -23,12 +23,13 @@ class Engine(object):
 
         self._now = Time(0)
 
-    def _output_debug_info(self, strip):
+    def _output_debug_info(self, strip, proctime):
         home()
         self.town.print_items(strip)
         print()
         print(self._now)
         self._now += 1
+        print(f"{proctime:.4})
 
 
     def animate(self, strip):
@@ -41,13 +42,21 @@ class Engine(object):
         for change in changes:
             change.apply_to(strip)
 
-            if config.debug:
-                self._output_debug_info(strip)
-
             strip.show()
 
             end = time.time()
-            d = frametime - (end-start)
+            proctime=end-start
+
+            d = frametime - proctime
             if d > 0:
                 time.sleep(d)
-            start = end + d
+                start = end + d
+            else:
+                # On the occasional cold start this mechanism screws up
+                # when the engine is started in the boot sequence. I
+                # suppose the system clock gets set during the script’s
+                # runtime.
+                start = time.time()
+
+            if config.debug:
+                self._output_debug_info(strip, proctime)
