@@ -1,4 +1,4 @@
-from random import randint
+from random import randint, random
 from itertools import repeat
 from typing import Generator
 
@@ -89,7 +89,7 @@ def tv():
         b = limit(50 + randint(middle-bigdiff, middle+bigdiff))
 
         # A cut to a new sequence.
-        yield Color.from_rgb(r, g, b)
+        yield Color.from_rgb(r, g, b).darker(random())
 
         yield from rwait(.2, .8)
 
@@ -105,7 +105,7 @@ def tv():
             yield from rwait(.2, .8)
 
 def candle():
-    baselight = Color(0xff8800).darker(5)
+    baselight = Color(0xff8800).darker(.2)
 
     while True:
         yield baselight
@@ -113,13 +113,13 @@ def candle():
         for a in range(randint(3, 6)):
             # Flicker a little
             for b in range(3):
-                yield baselight.darker(randint(3,8))
+                yield baselight.darker(1/randint(3,8))
 
             # Stick to a color for a while.
-            yield baselight.darker(randint(2,4))
+            yield baselight.darker(1/randint(2,4))
             yield from rwait(4, 12)
 
 
         # Flicker more!
         for a in range(randint(5, 9)):
-            yield baselight.darker(randint(3,8))
+            yield baselight.darker(1/randint(3,8))
