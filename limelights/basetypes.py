@@ -90,19 +90,27 @@ def randsecs(a, b) -> RDuration:
 class Color(int):
     @classmethod
     def from_rgb(Color, r:int, g:int, b:int):
+        if r > 255: raise ValueError()
+        if g > 255: raise ValueError()
+        if b > 255: raise ValueError()
         return Color((r << 16) | (g << 8) | b)
 
     @classmethod
     def from_rgb_f(Color, r:float, g:float, b:float):
         # Keep these around in case we need them later.
-        ret = Color.from_rgb(round(r*255), round(g*255), round(b*255))
-        ret._rgb_f = r, g, b
-        return ret
+        self = Color.from_rgb(round(r*255), round(g*255), round(b*255))
+        self._rgb_f = r, g, b
+        return self
 
     @classmethod
     def from_hsl(Color, h:float, s:float, l:float):
+        if h > 1.0: raise ValueError()
+        if s > 1.0: raise ValueError()
+        if l > 1.0: raise ValueError()
+
+        self = Color.from_rgb_f(*colorsys.hls_to_rgb(h, s, l))
         self._hsl = (h, s, l)
-        return Color.from_rgb_f(*colorsys.hls_to_rgb(h, s, l))
+        return self
 
     @property
     def r(self) -> int:
@@ -167,16 +175,20 @@ class Color(int):
     def __repr__(self):
         return f"{self:06x}"
 
+    # Darker and brigter are the same thing. It depends on your factor
+    # not my function.
     def brighter(self, factor:float):
+        return self.darker(f)
+
+    def darker(self, factor:float):
         h,s,l = self.hsl
         l = l*factor
         if l > 1.0:
             l = 1.0
         return self.from_hsl(h, s, l)
 
-    def darker(self, factor:float):
-        h,s,l = self.hsl
-        return self.from_hsl(h, s, l/factor)
+
+
 
 Animation = Generator[Color, None, None]
 Animations = Generator[Animation, None, None]
