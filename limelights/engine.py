@@ -29,7 +29,7 @@ class Engine(object):
         print()
         print(self._now)
         self._now += 1
-        print(f"{proctime:.4})
+        print(f"{proctime:.4}")
 
 
     def animate(self, strip):
