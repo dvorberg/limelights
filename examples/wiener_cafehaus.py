@@ -42,10 +42,10 @@ class StudentAppartment(Room):
     def __init__(self, *lights, lightnum=1):
         super().__init__(*lights, lightnum=lightnum)
 
-        if random() > .5:
+        if random() > .8:
             self._color=warmwhite.darker(2)
         else:
-            self._color=Color(0xeebbbb).darker(3.5)
+            self._color=Color(0xffbbbb).darker(3.5)
 
     def animations(self):
         r = random()
@@ -141,7 +141,7 @@ wiener_cafehaus = Building(
     # to students at the local university, see above.
     StudentAppartment("Third Floor Back left"),
     Office( Room("Third Floor Front right", color=0xffdddd),
-            Room("Third Floor Front center", color=0x665555),
+            Room("Third Floor Front center", color=warmwhite.darker(2.5)),
             Room("Third Floor Front left", color=0xff9999)),
     StudentAppartment("Third Floor Back right"),
 
