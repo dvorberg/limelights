@@ -103,13 +103,13 @@ class Color(int):
         return self
 
     @classmethod
-    def from_hsl(Color, h:float, s:float, l:float):
+    def from_hls(Color, h:float, l:float, s:float):
         if h > 1.0: raise ValueError()
-        if s > 1.0: raise ValueError()
         if l > 1.0: raise ValueError()
+        if s > 1.0: raise ValueError()
 
-        self = Color.from_rgb_f(*colorsys.hls_to_rgb(h, s, l))
-        self._hsl = (h, s, l)
+        self = Color.from_rgb_f(*colorsys.hls_to_rgb(h, l, s))
+        self._hls = (h, l, s)
         return self
 
     @property
@@ -135,10 +135,11 @@ class Color(int):
         return self._rgb_f
 
     @property
-    def hsl(self) -> tuple[float]:
-        if not hasattr(self, "_hsl"):
-            self._hsl = colorsys.rgb_to_hls(*self.rgb_f)
-        return self._hsl
+    def hls(self) -> tuple[float]:
+        if not hasattr(self, "_hls"):
+            h, l, s =  colorsys.rgb_to_hls(*self.rgb_f)
+            self._hls = h, l, s
+        return self._hls
 
     @property
     def h(self) -> float:
@@ -149,7 +150,17 @@ class Color(int):
         greatest. It is indicated by its position (in degrees) on the
         RGB color wheel: 0° <= h <= 360°
         """
-        return self.hsl[0]
+        return self.hls[0]
+
+    @property
+    def l(self) -> float:
+        """
+        Luminosity (also called brightness, lightness or
+        luminance) stands for the intensity of the energy output of a
+        visible light source. It basically tells how light a color is
+        and is measured on the following scale: 0 <= l <= 1
+        """
+        return self.hls[1]
 
     @property
     def s(self) -> float:
@@ -160,17 +171,7 @@ class Color(int):
         colors appear more washed-out. It is measured on the following
         scale: 0 <= s <= 1
         """
-        return self.hsl[1]
-
-    @property
-    def l(self) -> float:
-        """
-        Luminosity (also called brightness, lightness or
-        luminance) stands for the intensity of the energy output of a
-        visible light source. It basically tells how light a color is
-        and is measured on the following scale: 0 <= l <= 1
-        """
-        return self.hsl[2]
+        return self.hls[2]
 
     def __repr__(self):
         return f"{self:06x}"
@@ -181,13 +182,11 @@ class Color(int):
         return self.darker(f)
 
     def darker(self, factor:float):
-        h,s,l = self.hsl
+        h,l,s = self.hls
         l = l*factor
         if l > 1.0:
             l = 1.0
-        return self.from_hsl(h, s, l)
-
-
+        return self.__class__.from_hls(h, l, s)
 
 
 Animation = Generator[Color, None, None]
@@ -213,7 +212,6 @@ class Change(dict):
             for idx, color in self.items():
                 strip[idx] = color
         except TypeError:
-            ic(idx, color)
             raise
 
 class Changes(Change):
