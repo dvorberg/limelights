@@ -29,7 +29,7 @@ class Engine(object):
         print()
         print(self._now)
         self._now += 1
-        print(f"{proctime:.4}")
+        print("%.4f" % proctime)
 
 
     def animate(self, strip):
@@ -60,3 +60,4 @@ class Engine(object):
 
             if config.debug:
                 self._output_debug_info(strip, proctime)
+                start = time.time()
