@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import sys, argparse, time, re
-from icecream import ic
-from rpi_ws281x import PixelStrip
+import sys, argparse, time, re, os, pwd, grp
 
 from limelights.basetypes import Color
+from limelights.cmdline import construct_strip, populate_with_strip_arguments
+
 
 # Source: https://andi-siess.de/rgb-to-color-temperature/
 # Thanks for that!
@@ -153,21 +153,7 @@ def main():
     parser = argparse.ArgumentParser(description="Test script for PixelStrips")
     parser.add_argument("-c", "--count", help="Number of LED pixels", type=int,
                         default=None)
-    parser.add_argument("-g", "--gpio", help="GPIO pin connected to the pixels"
-                        "18 uses PWM, 10 uses SPI /dev/spidev0.0, 21 uses PCM",
-                        default=18, type=int)
-    parser.add_argument("--led-freq", help="LED signal frequency in hertz "
-                        "(usually 800khz)", default=800000, type=int)
-    parser.add_argument("--dma", help="DMA channel to use for generating "
-                        "signal (try 10)", default=10, type=int)
-    parser.add_argument("--brightness", help="Set to 0 for darkest and 255 for "
-                        "brightest.", default=255, type=int)
-    parser.add_argument("--invert", help="True to invert the signal (when "
-                        "using NPN transistor level shift)",
-                        action="store_true", default=False)
-    parser.add_argument("--channel", help="Set to 1 by default for GPIOs "
-                        "13, 19, 41, 45, or 53, otherwise 0.",
-                        default=None, type=int)
+    populate_with_strip_arguments(parser)
     parser.add_argument("-C", "--color", help="RGB representation of the color"
                         "to be used.", default=None, type=parse_int)
     parser.add_argument("-d", "--darker", default=1.0, type=float,
@@ -202,6 +188,12 @@ def main():
 
     args = parser.parse_args()
 
+    if args.list_temperatures:
+        for k, tpl in kelvin_table.items():
+            if len(tpl) == 4:
+                print("%5i" % k, tpl[3])
+        sys.exit(0)
+
     if args.numbers:
         numbers = set()
         for n in args.numbers:
@@ -218,23 +210,7 @@ def main():
 
         numbers = list(range(args.count))
 
-    if args.list_temperatures:
-        for k, tpl in kelvin_table.items():
-            if len(tpl) == 4:
-                print("%5i" % k, tpl[3])
-        sys.exit(0)
-
-    if args.channel is None:
-        channel = 0
-        if args.gpio in { 13, 19, 41, 45, 53 }:
-            channel = 1
-    else:
-        channel = args.channel
-
-    strip = PixelStrip(args.count, args.gpio, args.led_freq, args.dma,
-                       args.invert, args.brightness, channel)
-    # Intialize the library (must be called once before other functions).
-    strip.begin()
+    strip = construct_strip(args, args.count)
 
     if args.off:
         for a in numbers:
@@ -257,8 +233,11 @@ def main():
 
         color = Color.from_rgb(*kelvin_table[key][:3])
 
+    ic(color)
     if args.darker != 1.0:
+        ic(args.darker)
         color = color.darker(args.darker)
+    ic(color)
 
     if args.brighter != 1.0:
         color = color.brighter(args.brighter)
@@ -289,7 +268,6 @@ def main():
         for a in numbers:
             strip[a] = color
 
-    ic(strip.size)
     strip.show()
 
     #while True:
