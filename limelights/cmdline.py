@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, argparse, time, re, importlib, pathlib
+import sys, argparse, time, re, importlib, pathlib, os, pwd, grp
 import importlib.machinery
 import importlib.util
 
@@ -109,9 +109,24 @@ def construct_strip(args, size):
     else:
         channel = args.channel
 
-    return PixelStrip(size,
-                      args.gpio, args.led_freq, args.dma,
-                      args.invert, args.brightness, channel)
+    if args.gpio == 18: # We need root privileges for this.
+        if os.getuid() != 0:
+            raise OSError("We need root access to manipulate the lights on GPIO 18.")
+
+    strip = PixelStrip(size,
+                       args.gpio, args.led_freq, args.dma,
+                       args.invert, args.brightness, channel)
+
+    strip.begin()
+
+    if args.gpio == 18: # We need root privileges for this.
+        # Drop root privileges
+        nobody = pwd.getpwnam("nobody").pw_uid
+        nogroup = grp.getgrnam("nogroup").gr_gid
+        os.setgid(nogroup)
+        os.setuid(nobody)
+
+    return strip
 
 def load_buildings(modules):
     for modulename in modules:
