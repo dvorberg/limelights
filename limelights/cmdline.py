@@ -251,7 +251,6 @@ def animate():
     engine = Engine(Town(*load_buildings(args.modules)), args.offset)
 
     strip = construct_strip(args, engine.lightcount)
-    strip.begin()
 
     # This will not return.
     engine.animate(strip)
