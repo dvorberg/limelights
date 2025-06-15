@@ -217,6 +217,12 @@ class Stairwell(Room):
         yield limit(self.off(), self.usage)
         yield limit(self.on(), self.light)
 
+class Attic(Stairwell):
+    def __init__(self, *lights, lightnum=None, color=Color(0xf06518).darker(.6),
+                 usage=randmins(12,45), light=Time.from_minutes(4)):
+        super().__init__(*lights, lightnum=lightnum, color=color, usage=usage, light=light)
+
+
 class Fireplace(Room):
     pass
 
