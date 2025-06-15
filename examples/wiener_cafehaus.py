@@ -5,7 +5,7 @@ from random import random, randint
 
 from limelights.basetypes import randmins, randsecs, Color
 from limelights.model import (Building, Space, Room, HotelRoom, Fireplace,
-                              Stairwell, CandleRoom)
+                              Stairwell, CandleRoom, EndMarker)
 from limelights.animations import on, off, tv, limit, candle, darker
 
 warmwhite = Color(0x553311)
@@ -26,7 +26,7 @@ class Restaurant(Room):
     # The lights in the restaurant are constantly on. There are constantly
     # model people in there so we won’t leave them in the dark.
     def __init__(self, *lights, lightnum=1, color=warmwhite):
-        super().__init__(*lights, lightnum=lightnum, color=color.darker(3))
+        super().__init__(*lights, lightnum=lightnum, color=color.darker(.32))
 
 class Office(Space):
     # At a later time there might be office hours. Right now the staff is
@@ -43,9 +43,9 @@ class StudentAppartment(Room):
         super().__init__(*lights, lightnum=lightnum)
 
         if random() > .8:
-            self._color=warmwhite.darker(2)
+            self._color=warmwhite.darker(.5)
         else:
-            self._color=Color(0xffbbbb).darker(3.5)
+            self._color=Color(0xffbbbb).darker(.25)
 
     def animations(self):
         r = random()
@@ -58,7 +58,7 @@ class StudentAppartment(Room):
             # One can’t really study more than 90mins at once effectively.
         elif r < .9:
             # Taking a break…
-            yield limit(darker(tv(), 3), randmins(30,45))
+            yield limit(darker(tv(), .33), randmins(30,45))
         else:
             # …long break!
             yield limit(candle(), randmins(45,90))
@@ -80,7 +80,7 @@ class Flashlight(Room):
 # The flat’s room are not interdependent.
 class Bedroom(Room):
     def __init__(self, *lights, lightnum=1, color=warmwhite):
-        super().__init__(*lights, lightnum=lightnum, color=color.darker(3))
+        super().__init__(*lights, lightnum=lightnum, color=color.darker(.33))
 
     def animations(self):
         # You spend about a third of the day in bed, right? Right??
@@ -95,7 +95,7 @@ class Bedroom(Room):
 class Kitchen(Room):
     def __init__(self, *lights, lightnum=1):
         super().__init__(*lights, lightnum=lightnum,
-                         color=Color(0xffeeee).darker(3.5))
+                         color=Color(0xffeeee).darker(.25))
 
     def animations(self):
         # Takes about 45–90mins to cook a decent meal.
@@ -106,7 +106,7 @@ class Kitchen(Room):
 
 class Livingroom(Room):
     def __init__(self, *lights, lightnum=1, color=warmwhite):
-        super().__init__(*lights, lightnum=lightnum, color=color.darker(1.6))
+        super().__init__(*lights, lightnum=lightnum, color=color.darker(1/1.6))
 
     def animations(self):
         r = random()
@@ -123,14 +123,14 @@ wiener_cafehaus = Building(
     # Vissmann/Volmer 43618 H0 Wiener Kaffeehaus
     # https://viessmann-modell.com/spur-h0/gebaeude/stadt/1194h0-wiener-kaffeehaus/43618
 
-    Flat( Bedroom("Fourth Floor Back right", color=warmwhite.darker(1.6)),
+    Flat( Bedroom("Fourth Floor Back right", color=warmwhite.darker(1/1.6)),
           Bedroom("Fourth Floor Front right"),
           Livingroom("Fourth Floor Front center"),
           Bedroom("Fourth Floor Front left"),
           Kitchen("Fourth Floor Back left")),
 
-    Room("Fotostudio", lightnum=2, color=warmwhite.darker(1.5)),
-    Room("Fotostudio Backroom", lightnum=3, color=warmwhite.darker(2)),
+    Room("Fotostudio", lightnum=2, color=warmwhite.darker(1/1.5)),
+    Room("Fotostudio Backroom", lightnum=3, color=warmwhite.darker(.5)),
     Flashlight("Flashlight!"),
 
     # The third floor has offices in the front rooms.
@@ -141,7 +141,7 @@ wiener_cafehaus = Building(
     # to students at the local university, see above.
     StudentAppartment("Third Floor Back left"),
     Office( Room("Third Floor Front right", color=0xffdddd),
-            Room("Third Floor Front center", color=warmwhite.darker(2.5)),
+            Room("Third Floor Front center", color=warmwhite.darker(1/2.5)),
             Room("Third Floor Front left", color=0xff9999)),
     StudentAppartment("Third Floor Back right"),
 
@@ -153,5 +153,7 @@ wiener_cafehaus = Building(
 
     Restaurant("Ground Floor", lightnum=3),
 
-    Stairwell(lightnum=4)
+    Stairwell(lightnum=4),
+
+    EndMarker()
 )
