@@ -136,10 +136,6 @@ class Color(int):
 
     @classmethod
     def from_hls(Color, h:float, l:float, s:float):
-        if h > 1.0: raise ValueError()
-        if l > 1.0: raise ValueError()
-        if s > 1.0: raise ValueError()
-
         self = Color.from_rgb_f(*colorsys.hls_to_rgb(h, l, s))
         self._hls = (h, l, s)
         return self
