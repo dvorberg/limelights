@@ -67,19 +67,6 @@ class Booth(Room):
 #
 # )
 
-class EndMarker(Room):
-    def animations(self):
-        yield self.animation()
-
-    def animation(self):
-        yield 0xff0000
-        for a in range(config.framerate//2):
-            yield None
-
-        yield 0
-        for a in range(config.framerate//2):
-            yield None
-
 
 
 warmwhite = Color(0x553311)
@@ -144,7 +131,5 @@ lichtburg = Building(
     Booth(),
     Projector(),
 
-    Attic(lightnum=7),
-
-    EndMarker()
+    Attic(lightnum=7)
 )
