@@ -25,7 +25,7 @@ class Change(dict):
             for idx, color in self.items():
                 strip[idx] = color
         except TypeError:
-            raise
+            raise TypeError(repr(color))
 
 class Changes(Change):
     def __init__(self, things):
