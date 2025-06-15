@@ -238,3 +238,16 @@ class Town(Space):
                 return b
 
         return None
+
+class EndMarker(Room):
+    def animations(self):
+        yield self.animation()
+
+    def animation(self):
+        yield 0xff0000
+        for a in range(config.framerate//2):
+            yield None
+
+        yield 0
+        for a in range(config.framerate//2):
+            yield None
