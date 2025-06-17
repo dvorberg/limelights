@@ -12,7 +12,7 @@ except ImportError:
 from . import config
 from . engine import Engine
 from .basetypes import Time, Changes
-from .model import Building, Town, Source, Light
+from .model import Building, Town, Source, Light, EndMarker
 
 class DebugPixelStrip(dict):
     def __init__(self, *args, **kw):
@@ -235,6 +235,11 @@ def animate():
                         help="Print Buildings, rooms, and lights to stdout"
                         "on each frame.",
                         action="store_true", default=False)
+    parser.add_argument("--end-marker", "-E",
+                        help="Append no EndMarker, an extra "
+                        "pixel colorfully blinking to test electrical "
+                        "connectivity.",
+                        action="store_false", default=True)
     parser.add_argument("modules", nargs="+",
                         help="Python modules to import or python files to "
                         "evaluate to load building models")
@@ -248,7 +253,10 @@ def animate():
     config.speed = args.speed
     config.debug = args.debug
 
-    engine = Engine(Town(*load_buildings(args.modules)), args.offset)
+    town = Town(*load_buildings(args.modules))
+    if args.end_marker:
+        town.append(EndMarker())
+    engine = Engine(town, args.offset)
 
     strip = construct_strip(args, engine.lightcount)
 
