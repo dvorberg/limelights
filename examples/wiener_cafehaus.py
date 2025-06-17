@@ -4,11 +4,23 @@
 from random import random, randint
 
 from limelights.basetypes import randmins, randsecs, Color
-from limelights.model import (Building, Space, Room, HotelRoom, Fireplace,
+from limelights.model import (Building, Space, Room,
                               Stairwell, CandleRoom, EndMarker)
 from limelights.animations import on, off, tv, limit, candle, darker
 
 warmwhite = Color(0x553311)
+officelamp = Color(0xffeedd).darker(.75)
+
+
+class Room(Room):
+    """
+    All the rooms in my Wiener Cafehaus need to be dimmed by half
+    because the plastic walls are so thin I didn't know yet that painting
+    them black from the back side would help.
+    """
+    def __init__(self, *lights, lightnum=1, color=0xffffff):
+        super().__init__(*lights, lightnum=lightnum,
+                         color=Color(color).darker(.75))
 
 class Bakery(Room):
     def __init__(self, *lights, lightnum=1):
@@ -58,7 +70,7 @@ class StudentAppartment(Room):
             # One can’t really study more than 90mins at once effectively.
         elif r < .9:
             # Taking a break…
-            yield limit(darker(tv(), .33), randmins(30,45))
+            yield limit(darker(tv(), .15), randmins(30,45))
         else:
             # …long break!
             yield limit(candle(), randmins(45,90))
@@ -140,9 +152,9 @@ wiener_cafehaus = Building(
     # The two back rooms are rented out as single bedroom appartments
     # to students at the local university, see above.
     StudentAppartment("Third Floor Back left"),
-    Office( Room("Third Floor Front right", color=0xffdddd),
+    Office( Room("Third Floor Front right", color=officelamp),
             Room("Third Floor Front center", color=warmwhite.darker(1/2.5)),
-            Room("Third Floor Front left", color=0xff9999)),
+            Room("Third Floor Front left", color=officelamp)),
     StudentAppartment("Third Floor Back right"),
 
     StudentAppartment("Second Floor Back left"),
@@ -153,7 +165,5 @@ wiener_cafehaus = Building(
 
     Restaurant("Ground Floor", lightnum=3),
 
-    Stairwell(lightnum=4),
-
-    EndMarker()
+    Stairwell(lightnum=4)
 )
