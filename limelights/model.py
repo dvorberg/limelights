@@ -244,10 +244,13 @@ class EndMarker(Room):
         yield self.animation()
 
     def animation(self):
-        yield 0xff0000
-        for a in range(config.framerate//2):
-            yield None
+        for c in ( 0xff0000, 0xff00, 0xff,
+                   0xffff00, 0xffff, 0xff00ff, ):
+            yield c
 
-        yield 0
-        for a in range(config.framerate//2):
-            yield None
+            for a in range(config.framerate//2):
+                yield None
+
+            yield 0
+            for a in range(config.framerate//2):
+                yield None
